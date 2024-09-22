@@ -1,63 +1,51 @@
+const express = require("express");
+const app = express();
 const bodyParser = require("body-parser");
+
+app.use(bodyParser.json());
 
 function handleFile(fileBase64) {
     if (!fileBase64) return { valid: false, mimeType: null, sizeKb: null };
-    const sizeKb = Buffer.from(fileBase64, 'base64').length / 1024; // Calculate size in KB
-    const mimeType = "application/octet-stream"; // Simplified for demo
+    const sizeKb = fileBase64.length / 1024; // Simplified size calculation
+    const mimeType = "image/png"; // Adjust as necessary
     return { valid: true, mimeType, sizeKb };
 }
 
-exports.handler = async (event) => {
-    if (event.httpMethod === "GET") {
-        // Handle GET request
-        return {
-            statusCode: 200,
-            body: JSON.stringify({ operation_code: 1 }),
-        };
-    } else if (event.httpMethod === "POST") {
-        // Handle POST request
-        const { fullName, dob, data, file_b64 } = JSON.parse(event.body);
+app.post("/bfhl", (req, res) => {
+    const { data, file_b64 } = req.body;
 
-        if (!fullName || !dob) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({ is_success: false, error: "Missing fullName or dob" }),
-            };
-        }
-
-        const userId = `${fullName.toLowerCase().replace(/\s+/g, "_")}_${dob}`;
-        const fileInfo = handleFile(file_b64);
-
-        // Separate numbers and alphabets
-        const numbers = data.filter(item => !isNaN(item));
-        const alphabets = data.filter(item => isNaN(item));
-
-        // Find the highest lowercase alphabet
-        const lowercaseAlphabets = alphabets.filter(char => char >= 'a' && char <= 'z');
-        const highestLowercaseAlphabet = lowercaseAlphabets.length > 0 ? [lowercaseAlphabets[lowercaseAlphabets.length - 1]] : [];
-
-        // Construct the response
-        return {
-            statusCode: 200,
-            body: JSON.stringify({
-                is_success: true,
-                user_id: userId,
-                email: "john@xyz.com", // Placeholder for email
-                roll_number: "ABCD123", // Placeholder for roll number
-                numbers: numbers,
-                alphabets: alphabets,
-                highest_lowercase_alphabet: highestLowercaseAlphabet,
-                file: {
-                    valid: fileInfo.valid,
-                    mime_type: fileInfo.mimeType,
-                    size_kb: fileInfo.sizeKb,
-                },
-            }),
-        };
-    } else {
-        return {
-            statusCode: 405,
-            body: JSON.stringify({ is_success: false, error: "Method Not Allowed" }),
-        };
+    if (!data || !file_b64) {
+        return res.status(400).json({ is_success: false, error: "Missing data or file_b64" });
     }
-};
+
+    const fullName = "Sanjay Aaditya"; // Use your full name here
+    const dob = "15022003"; // Your DOB here
+    const userId = `${fullName.replace(/\s+/g, "_").toLowerCase()}_${dob}`;
+    const emailId = "sanjayaaditya@xyz.com"; // Your email here
+    const rollNumber = "ABCD123"; // Your roll number here
+
+    const numbers = data.filter(item => !isNaN(item));
+    const alphabets = data.filter(item => isNaN(item));
+    const highestLowercaseAlphabet = alphabets.filter(c => c === c.toLowerCase()).sort().slice(-1);
+
+    const fileInfo = handleFile(file_b64);
+
+    res.json({
+        is_success: true,
+        user_id: userId,
+        email: emailId,
+        roll_number: rollNumber,
+        numbers,
+        alphabets,
+        highest_lowercase_alphabet: highestLowercaseAlphabet,
+        file_valid: fileInfo.valid,
+        file_mime_type: fileInfo.mimeType,
+        file_size_kb: fileInfo.sizeKb,
+    });
+});
+
+app.get("/bfhl", (req, res) => {
+    res.json({ operation_code: 1 });
+});
+
+module.exports = app;
